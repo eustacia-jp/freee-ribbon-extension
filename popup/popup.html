@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Ribbon for freee</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            width: 150px; /* 元の幅 */
+            padding: 10px;
+            text-align: center;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f8f8;
+            cursor: pointer;
+            transition: background-color 0.2s ease; /* ホバー効果用 */
+        }
+        button:hover {
+            background-color: #eee;
+        }
+        button:last-child {
+            margin-bottom: 0;
+        }
+        /* ★ アクティブ状態を示すスタイルを追加 ★ */
+        button.active {
+            background-color: #cfe2ff; /* 青みがかった背景色 */
+            border-color: #9ec5fe;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <button id="showRibbon">リボンを表示</button>
+    <button id="hideRibbon">リボンを隠す</button>
+    <script src="popup.js"></script> </body>
+</html>

@@ -1,0 +1,12 @@
+# ビルド・配布物
+*.zip
+*.crx
+*.pem
+
+# 作業用
+_bak/
+_old/
+*.bak
+
+# ※ 認証情報・OS生成ファイルはグローバル gitignore
+#   (~/.gitignore_global) で除外済み

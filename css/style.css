@@ -1,0 +1,88 @@
+/* css/style.css (ユーザー指定スタイル最終版) */
+#freee-ribbon-extension {
+    position: fixed;
+    z-index: 999999 !important;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    overflow: hidden;
+    pointer-events: auto;
+    display: none;
+    cursor: pointer;
+}
+
+/* リボン共通スタイル (位置と回転) */
+#freee-ribbon-extension .ribbon-main,
+#freee-ribbon-extension .ribbon-sub {
+    display: block;
+    position: absolute;
+    width: 300px;
+    color: #fff;
+    font-family: sans-serif;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: rotate(45deg);
+    transform-origin: center;
+    pointer-events: none;
+    transition: background 0.5s, transform 0.5s, left 0.5s, right 0.5s, top 0.5s, box-shadow 0.5s;
+}
+
+/* ★★★ 1段目: 事業所名リボン (ユーザー指定に修正) ★★★ */
+#freee-ribbon-extension .ribbon-main {
+    padding: 6px 0 14px; /* ユーザー指定 */
+    background-color: red; /* JSで上書き */
+    font-size: 0.9rem; /* ユーザー指定 */
+    line-height: 1.5rem; /* ユーザー指定 (結果的に変更なし) */
+    top: 45px;
+    right: -80px;
+    box-shadow: -4px -4px 10px rgba(0, 0, 0, 0.4); /* 1段目用の影 */
+}
+/* ★★★ 事業所名テキスト (ユーザー指定に修正) ★★★ */
+#freee-ribbon-extension .ribbon-main .ribbon-text {
+    display: inline-block;
+    max-width: 180px; /* ユーザー指定 */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    vertical-align: middle; /* ユーザー指定 */
+}
+
+
+/* ★★★ 2段目: 事業所番号リボン (top調整) ★★★ */
+#freee-ribbon-extension .ribbon-sub {
+    padding: 3px 0;
+    /* background-color はJSで設定 */
+    font-size: 0.8rem;
+    line-height: 1.4;
+    /* ★ 1段目の高さ変更に合わせて top を微調整 ★ */
+    top: 70px;    /* 72px から 70px に変更 */
+    right: -60px;
+    box-shadow: 4px 4px 10px rgba(20, 20, 20, 0.3); /* 2段目用の影 */
+}
+
+
+/* クリックで左上に移動したときのスタイル */
+#freee-ribbon-extension.moved {
+    right: auto;
+    left: 0;
+}
+#freee-ribbon-extension.moved .ribbon-main {
+    right: auto;
+    left: -80px;
+    transform: rotate(-45deg);
+}
+#freee-ribbon-extension.moved .ribbon-sub {
+    right: auto;
+    left: -60px;
+    transform: rotate(-45deg);
+}
+
+/* 非表示用クラス */
+#freee-ribbon-extension.hidden {
+    display: none !important;
+}

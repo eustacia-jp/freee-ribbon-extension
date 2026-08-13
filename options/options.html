@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Ribbon for freee 設定</title>
+    <style>
+        /* --- 基本スタイル --- */
+        body { font-family: sans-serif; padding: 20px; min-width: 500px; }
+        h1 { border-bottom: 1px solid #ccc; padding-bottom: 5px; font-size: x-large; }
+        h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; font-size: large; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="color"], input[type="checkbox"] { margin-bottom: 5px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; vertical-align: middle; }
+        input[type="checkbox"] { margin-right: 5px; margin-bottom: 15px; }
+        input[type="color"] { min-width: 40px; height: 35px; padding: 2px 5px; margin-right: 5px; vertical-align: middle; cursor: pointer; margin-bottom: 0; }
+        .color-text-input { width: 100px; margin-left: 0; vertical-align: middle; margin-bottom: 0; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; vertical-align: middle; }
+        button:hover { background-color: #0056b3; }
+        .color-mapping { display: flex; align-items: center; margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 4px; gap: 10px; }
+        .color-mapping input.company-id { width: 180px; margin-right: 0; margin-bottom: 0; }
+        .color-mapping input.color-text-input { width: 100px; margin-bottom: 0; }
+        .color-mapping input[type="color"] { margin-right: 0; margin-bottom: 0; }
+        .company-name-display { font-size: 0.9em; color: #6c757d; margin-left: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; vertical-align: middle; }
+        .color-mapping button { background-color: #f06666; padding: 5px 10px; font-size: 0.9em; margin-left: auto; margin-right: 0; }
+        .color-mapping button:hover { background-color: #e05555; }
+        #status { margin-top: 15px; color: green; font-weight: bold; min-height: 1.2em; }
+
+        details.developer-settings-container { margin-top: 20px; margin-bottom: 20px; border: 1px solid #dee2e6; border-radius: 5px; background-color: #f8f9fa; }
+        details.developer-settings-container summary { padding: 10px 15px; cursor: pointer; font-weight: bold; font-size: large; color: #666; border-bottom: 1px solid #ccc; list-style-position: inside; }
+        details.developer-settings-container[open] summary { border-bottom: none; margin-bottom: 10px; }
+        .developer-settings { padding: 0 15px 15px 15px; }
+        .dev-color-setting { display: flex; align-items: center; margin-bottom: 15px; gap: 5px; }
+        .dev-color-setting label { margin-bottom: 0; margin-right: 0; min-width: 150px; }
+        .dev-color-setting input[type="color"] { margin-bottom: 0; margin-right: 0; }
+        .dev-color-setting input[type="text"] { margin-bottom: 0; }
+        .input-error { border: 1px solid red !important; box-shadow: 0 0 3px rgba(255, 0, 0, 0.5); }
+        .default-value-note { font-size: 0.8em; color: #6c757d; margin-top: -5px; margin-bottom: 15px; display: block; }
+        .io-buttons button { background-color: #6c757d; font-size: 0.9em; padding: 8px 12px; }
+        .io-buttons button:hover { background-color: #5a6268; }
+        .import-warning { font-size: 0.85em; color: #6c757d; margin-top: 10px; margin-bottom: 0; }
+        .help-link { font-size: 0.9em; color: #6c757d; margin-top: -5px; margin-bottom: 15px; }
+        .help-link a { color: #007bff; text-decoration: none; }
+        .help-link a:hover { text-decoration: underline; }
+        .page-footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; font-size: 0.8em; color: #6c757d; }
+
+        /* ヘルプアイコンとツールチップのスタイル */
+        .help-icon { display: inline-block; width: 16px; height: 16px; background-color: #aaa; color: white; border-radius: 50%; text-align: center; font-size: 12px; line-height: 16px; cursor: help; margin-left: 5px; position: relative; vertical-align: middle; }
+        .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            width: 350px;
+            background-color: #555;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1;
+            /* ★★★ 位置調整：アイコンの上、少し左に表示（元に戻す） ★★★ */
+            bottom: 130%;
+            left: -20px;
+            margin-left: 0;
+            /* ★★★ ここまで ★★★ */
+            transition: opacity 0.3s;
+            font-size: 0.85rem;
+            font-weight: normal;
+            line-height: 1.4;
+        }
+        /* ツールチップの吹き出しの矢印 */
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            /* ★★★ 矢印を下向きに（元に戻す） ★★★ */
+            top: 100%;
+            left: 30px; /* 横位置は維持 */
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent; /* ★ 色指定を戻す */
+            /* ★★★ ここまで ★★★ */
+        }
+        .help-icon:hover .tooltip-text { visibility: visible; opacity: 1; }
+        .tooltip-text code { background-color: #777; padding: 1px 4px; border-radius: 3px; font-family: monospace; }
+        .tooltip-text strong { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Color Ribbon for freee 設定</h1>
+    <label for="enableRibbon"> <input type="checkbox" id="enableRibbon"> リボンを表示する </label>
+    <h2>事業所ごとの色設定</h2>
+    <p class="help-link">
+        事業所番号が不明な場合は、<a href="https://support.freee.co.jp/hc/ja/articles/360000356263" target="_blank" rel="noopener noreferrer">freeeヘルプセンター</a>をご参照ください。
+    </p>
+    <div id="colorMappings"> </div>
+    <button id="addMapping">＋ マッピングを追加</button>
+
+    <details class="developer-settings-container">
+        <summary>開発者向け設定</summary>
+        <div class="developer-settings">
+            <label for="stagingRegex">
+                ステージング環境URL (正規表現)
+                <span class="help-icon">?
+                    <span class="tooltip-text">
+                        ステージング/インテグレーション環境を使用することがある方のみ、正規表現で指定してください。<br>
+                        デフォルトは書式を表すための例で、そのままでは実際の構成と合いません。<br><br>
+                        ステージング環境のURLが https://<strong>stg-secure</strong>.freee.co.jp であるとしたら、次のようにします。<br>
+                        <code>(stg-secure)\\.freee\\.co\\.jp</code><br>
+                        カッコ内は | で区切って、複数のインテグレーション環境を指定できます。
+                    </span>
+                </span>
+            </label>
+            <input type="text" id="stagingRegex" size="40">
+            <span id="defaultRegexDisplay" class="default-value-note"></span>
+            <div class="dev-color-setting">
+                <label for="stagingColor">
+                    ステージング環境の色
+                    <span class="help-icon">?
+                        <span class="tooltip-text">
+                            ステージング環境の正規表現に一致するURLを開いているとき、この色で表示されます。<br>
+                            「事業所ごとの色設定」よりも<strong>優先されます</strong>。
+                        </span>
+                        </span>
+                </label>
+                <input type="color" id="stagingColor">
+                <input type="text" id="stagingColorText" class="color-text-input" placeholder="色名 or #HEX">
+            </div>
+            <div class="dev-color-setting">
+                <label for="productionColor">
+                    本番環境の色
+                    <span class="help-icon">?
+                        <span class="tooltip-text">
+                            ステージング環境の正規表現に一致しないURLを開いているとき、この色で表示されます。<br>
+                            「事業所ごとの色設定」があれば、<strong>そちらが優先されます</strong>。
+                        </span>
+                        </span>
+                </label>
+                <input type="color" id="productionColor">
+                <input type="text" id="productionColorText" class="color-text-input" placeholder="色名 or #HEX">
+            </div>
+            <div class="dev-color-setting">
+                <label for="subRibbonColor">2段目リボンの色</label>
+                <input type="color" id="subRibbonColor">
+                <input type="text" id="subRibbonColorText" class="color-text-input" placeholder="色名 or #HEX">
+            </div>
+            <div class="dev-color-setting">
+                <label for="subRibbonTextColor">2段目リボンの文字色</label>
+                <input type="color" id="subRibbonTextColor">
+                <input type="text" id="subRibbonTextColorText" class="color-text-input" placeholder="色名 or #HEX">
+            </div>
+        </div>
+    </details>
+    <button id="save">設定を保存</button>
+    <div id="status"></div>
+
+    <div class="io-buttons" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px;">
+        <button type="button" id="exportSettings">設定をエクスポート (JSON)</button>
+        <button type="button" id="importSettings">設定をインポート (JSON)</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+        <span id="io-status" style="margin-left: 10px; font-size: 0.9em;"></span>
+        <p class="import-warning">
+            <strong>注意:</strong> 設定をインポートすると、現在の設定（事業所ごとの色設定、開発者向け設定、リボンの表示/非表示設定）は<strong style="color: #dc3545;">すべて上書きされます</strong>。
+        </p>
+    </div>
+
+    <footer class="page-footer">
+        開発・提供: ユースタシア合同会社 / Daiki Mori (yu)
+    </footer>
+    <script src="options.js"></script> </body>
+</html>
