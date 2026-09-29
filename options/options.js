@@ -3,12 +3,19 @@ console.log("options.js: Script loading...");
 
 // --- 定数 ---
 // ★★★ デフォルトの正規表現を background.js と合わせる ★★★
-const DEFAULT_STAGING_REGEX = '(xx-secure|aka|ao|midori)\\.freee\\.co\\.jp';
+const DEFAULT_STAGING_REGEX = '(stg-secure|aka|ao|kiiro)\\.freee\\.co\\.jp';
 // ★★★ ここまで修正 ★★★
 const DEFAULT_STAGING_COLOR = 'orange'; // background.js と合わせる
 const DEFAULT_PRODUCTION_COLOR = 'red';
 const DEFAULT_ROW_COLOR = '#2864f0'; // マッピング追加時のデフォルト色
 const DEFAULT_SUB_RIBBON_COLOR = '#666666'; // 2段目のデフォルト色
+const DEFAULT_RIBBON_OPACITY = 100; // リボン背景の不透明度デフォルト(100=不透明)
+const MIN_RIBBON_OPACITY = 50; // これ未満は視認性が落ちすぎるため下限
+const DEFAULT_HIDE_MODE = 'click-toggle'; // リボンを一時的に消す方法のデフォルト
+const DEFAULT_CID_OVERRIDE = ''; // 事業所番号の上書き文字列のデフォルト(空=上書きしない)
+const CID_OVERRIDE_REGEX = /^[A-Za-z0-9-]{0,18}$/; // 英数字とハイフン、最大18文字
+// ★★★ デフォルトの正規表現を background.js / content.js と合わせる ★★★
+const DEFAULT_DISABLED_URL_REGEX = '(invoice\\.secure\\.freee\\.co\\.jp|secure\\.freee\\.co\\.jp/ctax)'; // リボンを表示しないURLのデフォルト(空=制御なし)
 
 // --- Helper Function: toHex ---
 const toHex = (c) => {
@@ -60,18 +67,26 @@ function restoreOptions() {
       // ★ storage.get のデフォルト値も最新に合わせる ★
       chrome.storage.local.get({
         enabled: true, companyColors: {},
+        ribbonOpacity: DEFAULT_RIBBON_OPACITY,
+        hideMode: DEFAULT_HIDE_MODE,
         devSettings: {
             stagingRegex: DEFAULT_STAGING_REGEX, // 更新された定数を使用
             stagingColor: DEFAULT_STAGING_COLOR, // 更新された定数を使用
             productionColor: DEFAULT_PRODUCTION_COLOR,
-            subRibbonColor: DEFAULT_SUB_RIBBON_COLOR
+            subRibbonColor: DEFAULT_SUB_RIBBON_COLOR,
+            cidOverride: DEFAULT_CID_OVERRIDE,
+            disabledUrlRegex: DEFAULT_DISABLED_URL_REGEX
         },
         companyNameCache: {}
        }, (items) => {
-        if (chrome.runtime.lastError) { console.error("restoreOptions Error:", chrome.runtime.lastError.message); items = { enabled: true, companyColors:{}, devSettings:{ stagingRegex: DEFAULT_STAGING_REGEX, stagingColor: DEFAULT_STAGING_COLOR, productionColor: DEFAULT_PRODUCTION_COLOR, subRibbonColor: DEFAULT_SUB_RIBBON_COLOR }, companyNameCache:{} }; } // エラー時もデフォルト設定
+        if (chrome.runtime.lastError) { console.error("restoreOptions Error:", chrome.runtime.lastError.message); items = { enabled: true, companyColors:{}, ribbonOpacity: DEFAULT_RIBBON_OPACITY, hideMode: DEFAULT_HIDE_MODE, devSettings:{ stagingRegex: DEFAULT_STAGING_REGEX, stagingColor: DEFAULT_STAGING_COLOR, productionColor: DEFAULT_PRODUCTION_COLOR, subRibbonColor: DEFAULT_SUB_RIBBON_COLOR, cidOverride: DEFAULT_CID_OVERRIDE, disabledUrlRegex: DEFAULT_DISABLED_URL_REGEX }, companyNameCache:{} }; } // エラー時もデフォルト設定
 
         // --- フォームへの値設定 ---
         const enableRibbonCheckbox = document.getElementById('enableRibbon');
+        const ribbonOpacityInput = document.getElementById('ribbonOpacity');
+        const ribbonOpacityValueSpan = document.getElementById('ribbonOpacityValue');
+        const hideModeClickToggleInput = document.getElementById('hideModeClickToggle');
+        const hideModeHoverHideInput = document.getElementById('hideModeHoverHide');
         const mappingsDiv = document.getElementById('colorMappings');
         const stagingRegexInput = document.getElementById('stagingRegex');
         const stagingColorInput = document.getElementById('stagingColor');
@@ -81,17 +96,27 @@ function restoreOptions() {
         const defaultRegexDisplay = document.getElementById('defaultRegexDisplay');
         const subRibbonColorInput = document.getElementById('subRibbonColor');
         const subRibbonColorTextInput = document.getElementById('subRibbonColorText');
+        const cidOverrideInput = document.getElementById('cidOverride');
+        const disabledUrlRegexInput = document.getElementById('disabledUrlRegex');
+        const defaultDisabledUrlRegexDisplay = document.getElementById('defaultDisabledUrlRegexDisplay');
 
-        if (!enableRibbonCheckbox || !mappingsDiv || !stagingRegexInput || !stagingColorInput || !stagingColorTextInput || !productionColorInput || !productionColorTextInput || !defaultRegexDisplay || !subRibbonColorInput || !subRibbonColorTextInput) {
+        if (!enableRibbonCheckbox || !ribbonOpacityInput || !ribbonOpacityValueSpan || !hideModeClickToggleInput || !hideModeHoverHideInput || !mappingsDiv || !stagingRegexInput || !stagingColorInput || !stagingColorTextInput || !productionColorInput || !productionColorTextInput || !defaultRegexDisplay || !subRibbonColorInput || !subRibbonColorTextInput || !cidOverrideInput || !disabledUrlRegexInput || !defaultDisabledUrlRegexDisplay) {
             console.error("restoreOptions: One or more essential elements not found!"); return;
         }
 
         enableRibbonCheckbox.checked = items.enabled !== false;
+        const storedRibbonOpacity = typeof items.ribbonOpacity === 'number' ? items.ribbonOpacity : DEFAULT_RIBBON_OPACITY;
+        const ribbonOpacityValue = Math.min(100, Math.max(MIN_RIBBON_OPACITY, storedRibbonOpacity));
+        ribbonOpacityInput.value = ribbonOpacityValue;
+        ribbonOpacityValueSpan.textContent = ribbonOpacityValue;
+        const hideModeValue = items.hideMode === 'hover-hide' ? 'hover-hide' : DEFAULT_HIDE_MODE;
+        hideModeClickToggleInput.checked = hideModeValue === 'click-toggle';
+        hideModeHoverHideInput.checked = hideModeValue === 'hover-hide';
         mappingsDiv.innerHTML = '';
         const companyColors = items.companyColors || {};
         const nameCache = items.companyNameCache || {};
         for (const cid in companyColors) { try { addMappingRow(cid, companyColors[cid], nameCache[cid] || ''); } catch (e) { console.error(`Error adding mapping row for ${cid}:`, e); } }
-        const devSettings = items.devSettings || { stagingRegex: DEFAULT_STAGING_REGEX, stagingColor: DEFAULT_STAGING_COLOR, productionColor: DEFAULT_PRODUCTION_COLOR, subRibbonColor: DEFAULT_SUB_RIBBON_COLOR }; // デフォルトを確実に適用
+        const devSettings = items.devSettings || { stagingRegex: DEFAULT_STAGING_REGEX, stagingColor: DEFAULT_STAGING_COLOR, productionColor: DEFAULT_PRODUCTION_COLOR, subRibbonColor: DEFAULT_SUB_RIBBON_COLOR, cidOverride: DEFAULT_CID_OVERRIDE, disabledUrlRegex: DEFAULT_DISABLED_URL_REGEX }; // デフォルトを確実に適用
 
         stagingRegexInput.value = devSettings.stagingRegex || DEFAULT_STAGING_REGEX; // 保存値がなければ定数を使う
 
@@ -107,9 +132,17 @@ function restoreOptions() {
         subRibbonColorTextInput.value = subRibbonColorValue;
         subRibbonColorInput.value = normalizeColorToHex(subRibbonColorValue);
 
+        cidOverrideInput.value = devSettings.cidOverride || DEFAULT_CID_OVERRIDE;
+
+        // 未設定(undefined)ならデフォルト値、保存済みの値が空文字列なら「制御なし」の明示的な指定として尊重する
+        disabledUrlRegexInput.value = typeof devSettings.disabledUrlRegex === 'string' ? devSettings.disabledUrlRegex : DEFAULT_DISABLED_URL_REGEX;
+
         if (defaultRegexDisplay) {
             // ★★★ 表示するデフォルト値も更新された定数を使用 ★★★
             defaultRegexDisplay.textContent = `デフォルト：${DEFAULT_STAGING_REGEX}`;
+        }
+        if (defaultDisabledUrlRegexDisplay) {
+            defaultDisabledUrlRegexDisplay.textContent = `デフォルト：${DEFAULT_DISABLED_URL_REGEX}`;
         }
         // console.log("restoreOptions: Function finished applying values."); // ログ削減
       });
@@ -122,6 +155,12 @@ function saveOptions() {
     // console.log("saveOptions: Function started.");
     try {
         const enabled = document.getElementById('enableRibbon').checked;
+        const ribbonOpacityInput = document.getElementById('ribbonOpacity');
+        let ribbonOpacity = ribbonOpacityInput ? parseInt(ribbonOpacityInput.value, 10) : DEFAULT_RIBBON_OPACITY;
+        if (isNaN(ribbonOpacity)) ribbonOpacity = DEFAULT_RIBBON_OPACITY;
+        ribbonOpacity = Math.min(100, Math.max(MIN_RIBBON_OPACITY, ribbonOpacity));
+        const checkedHideModeInput = document.querySelector('input[name="hideMode"]:checked');
+        const hideMode = checkedHideModeInput && checkedHideModeInput.value === 'hover-hide' ? 'hover-hide' : DEFAULT_HIDE_MODE;
         const companyColors = {};
         const mappings = document.querySelectorAll('.color-mapping');
         let validationError = false;
@@ -137,6 +176,10 @@ function saveOptions() {
         if (productionColorTextInput) productionColorTextInput.classList.remove('input-error');
         const subRibbonColorTextInput = document.getElementById('subRibbonColorText');
         if (subRibbonColorTextInput) subRibbonColorTextInput.classList.remove('input-error');
+        const cidOverrideInput = document.getElementById('cidOverride');
+        if (cidOverrideInput) cidOverrideInput.classList.remove('input-error');
+        const disabledUrlRegexInput = document.getElementById('disabledUrlRegex');
+        if (disabledUrlRegexInput) disabledUrlRegexInput.classList.remove('input-error');
         mappings.forEach(m => {
             m.querySelector('.company-id')?.classList.remove('input-error');
             m.querySelector('.color-text-input')?.classList.remove('input-error');
@@ -189,23 +232,29 @@ function saveOptions() {
         const productionColorPicker = document.getElementById('productionColor')?.value || '';
         const subRibbonColorText = subRibbonColorTextInput ? subRibbonColorTextInput.value.trim() : '';
         const subRibbonColorPicker = document.getElementById('subRibbonColor')?.value || '';
+        const cidOverride = cidOverrideInput ? cidOverrideInput.value.trim() : '';
+        const disabledUrlRegex = disabledUrlRegexInput ? disabledUrlRegexInput.value.trim() : '';
 
         const devSettings = {
             stagingRegex: stagingRegex,
             stagingColor: stagingColorText || stagingColorPicker,
             productionColor: productionColorText || productionColorPicker,
-            subRibbonColor: subRibbonColorText || subRibbonColorPicker
+            subRibbonColor: subRibbonColorText || subRibbonColorPicker,
+            cidOverride: cidOverride,
+            disabledUrlRegex: disabledUrlRegex
         };
 
         if (devSettings.stagingRegex === '') { if (!validationError) status.textContent = 'ステージングURLは空不可'; if(stagingRegexInput) stagingRegexInput.classList.add('input-error'); validationError = true; }
         if (!devSettings.stagingColor) { if (!validationError) status.textContent = 'ステージングの色が空'; if (stagingColorTextInput) stagingColorTextInput.classList.add('input-error'); validationError = true; }
         if (!devSettings.productionColor) { if (!validationError) status.textContent = '本番環境の色が空'; if (productionColorTextInput) productionColorTextInput.classList.add('input-error'); validationError = true; }
         if (!devSettings.subRibbonColor) { if (!validationError) status.textContent = '2段目リボンの色が空です'; if (subRibbonColorTextInput) subRibbonColorTextInput.classList.add('input-error'); validationError = true; }
+        if (!CID_OVERRIDE_REGEX.test(devSettings.cidOverride)) { if (!validationError) status.textContent = '事業所番号の上書きは英数字とハイフンのみ、18文字以内で入力してください'; if (cidOverrideInput) cidOverrideInput.classList.add('input-error'); validationError = true; }
+        if (devSettings.disabledUrlRegex !== '') { try { new RegExp(devSettings.disabledUrlRegex, 'i'); } catch (e) { if (!validationError) status.textContent = 'リボンを表示しないURLの正規表現が不正です'; if (disabledUrlRegexInput) disabledUrlRegexInput.classList.add('input-error'); validationError = true; } }
 
         // --- 保存処理 ---
         if (validationError) { setTimeout(() => { status.textContent = ''; status.style.color = 'green'; }, 3000); return; }
 
-        const settingsToSave = { enabled, companyColors, devSettings };
+        const settingsToSave = { enabled, ribbonOpacity, hideMode, companyColors, devSettings };
         chrome.storage.local.set(settingsToSave, () => { // local storage
             const status = document.getElementById('status');
             if (!status) return;
@@ -246,13 +295,22 @@ function addMappingRow(cid = '', color = '#000000', name = '') {
 // ★★★ 設定エクスポート関数 ★★★
 function exportSettings() {
     console.log("Export button clicked.");
-    const keysToExport = ['enabled', 'companyColors', 'devSettings'];
+    const keysToExport = ['enabled', 'ribbonOpacity', 'hideMode', 'companyColors', 'devSettings'];
     chrome.storage.local.get(keysToExport, (items) => {
         if (chrome.runtime.lastError) { console.error("Error getting settings for export:", chrome.runtime.lastError.message); alert("設定のエクスポート中にエラーが発生しました。"); return; }
         const settingsToExport = {
             enabled: typeof items.enabled !== 'undefined' ? items.enabled : true,
+            ribbonOpacity: typeof items.ribbonOpacity === 'number' ? items.ribbonOpacity : DEFAULT_RIBBON_OPACITY,
+            hideMode: items.hideMode === 'hover-hide' ? 'hover-hide' : DEFAULT_HIDE_MODE,
             companyColors: items.companyColors || {},
-            devSettings: items.devSettings || { stagingRegex: DEFAULT_STAGING_REGEX, stagingColor: DEFAULT_STAGING_COLOR, productionColor: DEFAULT_PRODUCTION_COLOR, subRibbonColor: DEFAULT_SUB_RIBBON_COLOR }
+            devSettings: {
+                stagingRegex: items.devSettings?.stagingRegex ?? DEFAULT_STAGING_REGEX,
+                stagingColor: items.devSettings?.stagingColor ?? DEFAULT_STAGING_COLOR,
+                productionColor: items.devSettings?.productionColor ?? DEFAULT_PRODUCTION_COLOR,
+                subRibbonColor: items.devSettings?.subRibbonColor ?? DEFAULT_SUB_RIBBON_COLOR,
+                cidOverride: items.devSettings?.cidOverride ?? DEFAULT_CID_OVERRIDE,
+                disabledUrlRegex: typeof items.devSettings?.disabledUrlRegex === 'string' ? items.devSettings.disabledUrlRegex : DEFAULT_DISABLED_URL_REGEX
+            }
         };
         const jsonString = JSON.stringify(settingsToExport, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
@@ -288,12 +346,21 @@ function importSettings(file) {
 
             const settingsToSave = {
                 enabled: typeof importedSettings.enabled !== 'undefined' ? importedSettings.enabled : true,
+                ribbonOpacity: typeof importedSettings.ribbonOpacity === 'number' ? importedSettings.ribbonOpacity : DEFAULT_RIBBON_OPACITY,
+                hideMode: importedSettings.hideMode === 'hover-hide' ? 'hover-hide' : DEFAULT_HIDE_MODE,
                 companyColors: importedSettings.companyColors || {},
                 devSettings: {
                     stagingRegex: importedSettings.devSettings.stagingRegex || DEFAULT_STAGING_REGEX,
                     stagingColor: importedSettings.devSettings.stagingColor || DEFAULT_STAGING_COLOR,
                     productionColor: importedSettings.devSettings.productionColor || DEFAULT_PRODUCTION_COLOR,
-                    subRibbonColor: importedSettings.devSettings.subRibbonColor || DEFAULT_SUB_RIBBON_COLOR
+                    subRibbonColor: importedSettings.devSettings.subRibbonColor || DEFAULT_SUB_RIBBON_COLOR,
+                    cidOverride: CID_OVERRIDE_REGEX.test(importedSettings.devSettings.cidOverride || '') ? (importedSettings.devSettings.cidOverride || DEFAULT_CID_OVERRIDE) : DEFAULT_CID_OVERRIDE,
+                    disabledUrlRegex: (() => {
+                        const v = importedSettings.devSettings.disabledUrlRegex;
+                        if (typeof v !== 'string') return DEFAULT_DISABLED_URL_REGEX;
+                        if (v === '') return '';
+                        try { new RegExp(v, 'i'); return v; } catch (e) { return DEFAULT_DISABLED_URL_REGEX; }
+                    })()
                 }
             };
             chrome.storage.local.set(settingsToSave, () => {
@@ -334,6 +401,10 @@ function initializeOptionsPage() {
         // 保存ボタン
         const saveButton = document.getElementById('save');
         if (saveButton) { saveButton.addEventListener('click', saveOptions); } else { console.error("options.js: Save button not found!"); }
+        // 不透明度スライダー
+        const ribbonOpacityInput = document.getElementById('ribbonOpacity');
+        const ribbonOpacityValueSpan = document.getElementById('ribbonOpacityValue');
+        if (ribbonOpacityInput && ribbonOpacityValueSpan) { ribbonOpacityInput.addEventListener('input', (e) => { ribbonOpacityValueSpan.textContent = e.target.value; }); } else { console.error("options.js: Ribbon opacity elements not found!"); }
         // マッピング追加ボタン
         const addMappingButton = document.getElementById('addMapping');
         if (addMappingButton) { addMappingButton.addEventListener('click', () => { addMappingRow('', DEFAULT_ROW_COLOR, ''); }); } else { console.error("options.js: Add Mapping button not found!"); }

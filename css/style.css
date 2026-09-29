@@ -10,6 +10,14 @@
     pointer-events: auto;
     display: none;
     cursor: pointer;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* 「マウスをのせると自動的に消える」モード用: ホバーで判定ごと消える */
+#freee-ribbon-extension.hover-peek {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* リボン共通スタイル (位置と回転) */

@@ -4,20 +4,29 @@ console.log("freee Ribbon background script loaded (Error Log Adjusted - Complet
 // デフォルト設定 (更新済み)
 const defaultSettings = {
   enabled: true,
+  ribbonOpacity: 100, // リボン背景の不透明度(100=不透明、50-100の範囲)
+  hideMode: 'click-toggle', // リボンを一時的に消す方法('click-toggle' or 'hover-hide')
   companyColors: {
     '111-111-1111': 'blue' // サンプル
   },
   devSettings: {
-    stagingRegex: '(xx-secure|aka|ao|midori)\\.freee\\.co\\.jp',
+    stagingRegex: '(stg-secure|aka|ao|kiiro)\\.freee\\.co\\.jp',
     stagingColor: 'orange', // 更新済み
     productionColor: 'red',
-    subRibbonColor: '#666666'
+    subRibbonColor: '#666666',
+    cidOverride: '', // 事業所番号の上書き文字列(空=上書きしない)
+    disabledUrlRegex: '(invoice\\.secure\\.freee\\.co\\.jp|secure\\.freee\\.co\\.jp/ctax)' // リボンを表示しないURLの正規表現(空=制御なし)
   }
 };
 
 // データ取得関数 (全メソッド込み)
 const getDataFromPageFunc = () => {
     return new Promise(async (resolve) => {
+        // --- 機能フラグ ---
+        // freee請求書(Method H)自体の取得は有効化しておき、表示の可否は
+        // devSettings.disabledUrlRegex(オプション画面の「リボンを表示しないプロダクト・画面のURL」)に一本化する。
+        const ENABLE_INVOICE_RIBBON = true;
+
         const WAIT_MS = 1000; // 待機時間 3秒
         // console.log(`freee Ribbon (BG - Page): Waiting ${WAIT_MS}ms...`); // ログ削減
         await new Promise(res => setTimeout(res, WAIT_MS));
@@ -30,7 +39,6 @@ const getDataFromPageFunc = () => {
             external_cid_raw: null
         };
         const url = window.location.href;
-        let isAppStorePath = false; // アプリストアのパスかどうかのフラグ
 
         try {
             // --- Method 1: freee会社設立 ---
@@ -57,6 +65,14 @@ const getDataFromPageFunc = () => {
                      data.external_cid_raw = companyData?.external_cid;
                      data.company_name = companyData?.display_name;
                      data.companyId = companyData?.id;
+                 } else {
+                     // "company"オブジェクトを持たないプロダクト(申告など)向けフォールバック。
+                     // 内部IDだけは freee.data.get('company_id') で取れることがあるので、
+                     // それだけ拾っておき、事業所番号への変換はキャッシュ(cidLookupCache)による逆引きに任せる。
+                     const companyIdFallback = window.freee.data.get('company_id');
+                     if (typeof companyIdFallback !== 'undefined' && companyIdFallback !== null) {
+                         data.companyId = companyIdFallback;
+                     }
                  }
             // --- Method M: freeeマイナンバー管理 ---
             } else if (url.includes("https://m.secure.freee.co.jp/")) {
@@ -68,52 +84,74 @@ const getDataFromPageFunc = () => {
                     if (cidSpanElement) { const rawId = cidSpanElement.textContent?.trim(); if (rawId && /^[0-9-]+$/.test(rawId)) { data.external_cid_raw = rawId; } }
                     data.companyId = null;
                 } catch (domError) { data.error = (data.error || "") + " MyNumber DOM Error: " + domError.message; }
-            // ★★★ Method F: freeeアプリストア ($FREEE_DATA を先に試す) ★★★
+            // ★★★ Method F: freeeアプリストア ★★★
             } else if (url.includes("https://app.secure.freee.co.jp/")) {
-                isAppStorePath = true; // アプリストアパスフラグを立てる
-                console.log("freee Ribbon (BG - Page): Trying method F (App Store $FREEE_DATA)...");
-                let foundExternalCidInF = false;
-                if (typeof window.$FREEE_DATA === 'object' && window.$FREEE_DATA !== null) {
-                    // $FREEE_DATA から external_cid_raw や companyId, company_name を取得試行
-                    if (window.$FREEE_DATA.company_external_cid) { data.external_cid_raw = window.$FREEE_DATA.company_external_cid; foundExternalCidInF = true; }
-                    if (window.$FREEE_DATA.currentCompany?.external_cid && !foundExternalCidInF) { data.external_cid_raw = window.$FREEE_DATA.currentCompany.external_cid; foundExternalCidInF = true; }
-                    if (typeof window.$FREEE_DATA.companyId !== 'undefined') { const id = String(window.$FREEE_DATA.companyId); if (/^\d{10}$/.test(id) && !foundExternalCidInF) { data.external_cid_raw = id; foundExternalCidInF = true; data.companyId = null; } else if (!data.companyId) { data.companyId = window.$FREEE_DATA.companyId; } }
-                    if (window.$FREEE_DATA.loginUser?.company && !data.company_name) { data.company_name = window.$FREEE_DATA.loginUser.company; }
-                    if (window.$FREEE_DATA.currentCompany?.displayName && !data.company_name) { data.company_name = window.$FREEE_DATA.currentCompany.displayName; }
-                    if (window.$FREEE_DATA.currentCompany?.name && !data.company_name) { data.company_name = window.$FREEE_DATA.currentCompany.name; }
-                    if (window.$FREEE_DATA.currentCompany?.trade_name && !data.company_name) { data.company_name = window.$FREEE_DATA.currentCompany.trade_name; }
-                    if (window.$FREEE_DATA.loginUser?.company_id && !data.companyId) { data.companyId = window.$FREEE_DATA.loginUser.company_id; }
-                    if (window.$FREEE_DATA.currentCompany?.id && !data.companyId) { data.companyId = window.$FREEE_DATA.currentCompany.id; }
-                    // console.log("Method F finished check. Found external_cid_raw:", foundExternalCidInF); // ログ削減
-                } else { console.log("freee Ribbon (BG - Page): Method F - $FREEE_DATA not found."); }
-
-                // ★ Method F で external_cid が見つからなかった場合のみ dataLayer ポーリング ★
-                if (!foundExternalCidInF) {
-                    console.log("freee Ribbon (BG - Page): Method F failed. Trying Method A (dataLayer Polling)...");
-                    const POLLING_INTERVAL = 200; const MAX_ATTEMPTS = 15;
-                    let attempts = 0; let foundCidInDL = false;
-                    const pollDataLayer = () => {
-                        attempts++;
-                        if (Array.isArray(window.dataLayer)) {
-                            for (const item of window.dataLayer) {
-                                if (typeof item === 'object' && item !== null && typeof item.company_id !== 'undefined') {
-                                    const potentialRawCid = String(item.company_id);
-                                    if (/^\d{10}$/.test(potentialRawCid)) {
-                                        data.external_cid_raw = potentialRawCid; data.company_name = null; data.companyId = null;
-                                        // console.log("Method A - Found external_cid_raw via polling:", data.external_cid_raw); // ログ削減
-                                        foundCidInDL = true; resolve(data); return; // ★ resolve & return
-                                    }
-                                }
-                            }
-                        }
-                        if (!foundCidInDL && attempts < MAX_ATTEMPTS) { setTimeout(pollDataLayer, POLLING_INTERVAL); }
-                        else { if (!foundCidInDL) { console.log("Method A - Polling finished, not found."); } resolve(data); } // ★ resolve & return
-                    };
-                    pollDataLayer();
-                    // ★★★ ポーリングが開始されたら、この Promise の解決はポーリングに任せるので、ここでは return ★★★
-                    return;
+                console.log("freee Ribbon (BG - Page): Trying method F (App Store)...");
+                // 事業所番号は <head> 先頭付近の dataLayer 初期化スクリプトに書かれている
+                // (例: dataLayer = window.dataLayer || [{'company_id': 0971687822}];)。
+                // ただし window.dataLayer をそのまま読むと、引用符なし数値リテラルの
+                // 先頭の0がJSエンジンによって落とされてしまう(0971687822 → 971687822 に化ける)ため、
+                // 必ず<script>タグのソーステキストを正規表現で読むこと。
+                let cidRaw = null;
+                for (const script of document.scripts) {
+                    if (!script.src && script.textContent.includes("'company_id'")) {
+                        const m = script.textContent.match(/'company_id'\s*:\s*(\d+)/);
+                        if (m) { cidRaw = m[1]; break; }
+                    }
                 }
-                // Method F で external_cid が見つかった場合は、そのまま下の整形処理へ進む (resolve は関数の最後で)
+                if (cidRaw) { data.external_cid_raw = cidRaw.padStart(10, '0'); }
+
+                // 会社名・内部IDは $FREEE_DATA.data.currentCompany から
+                if (typeof window.$FREEE_DATA === 'object' && window.$FREEE_DATA !== null) {
+                    const company = window.$FREEE_DATA.data?.currentCompany;
+                    if (company?.displayName) { data.company_name = company.displayName; }
+                    if (typeof company?.id !== 'undefined') { data.companyId = company.id; }
+                }
+            // --- Method G: freee新UI基盤 (固定資産台帳など。/api/p/global_state を使用) ---
+            } else if (url.includes("https://fixed-asset.secure.freee.co.jp/")) {
+                console.log("freee Ribbon (BG - Page): Trying method G (global_state API)...");
+                fetch('/api/p/global_state', { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(json => {
+                        const company = json?.currentCompany;
+                        if (company) {
+                            if (company.externalCid) { data.external_cid_raw = String(company.externalCid); }
+                            if (company.displayName) { data.company_name = company.displayName; }
+                            if (typeof company.id !== 'undefined') { data.companyId = company.id; }
+                        }
+                        // --- データ整形 (このメソッドは非同期なのでここで行う) ---
+                        if (data.external_cid_raw) {
+                            const cidStr = String(data.external_cid_raw).replace(/-/g, '');
+                            if (/^\d{10}$/.test(cidStr)) { data.external_cid = `${cidStr.substring(0, 3)}-${cidStr.substring(3, 6)}-${cidStr.substring(6, 10)}`; }
+                            else { data.external_cid = null; }
+                        } else { data.external_cid = null; }
+                        resolve(data);
+                    })
+                    .catch(err => {
+                        console.error("freee Ribbon (BG - Page): Method G fetch failed:", err);
+                        data.error = (data.error || "") + " Method G fetch error: " + err.message;
+                        resolve(data);
+                    });
+                // ★★★ 非同期のfetch待ちなので、ここでreturnして下の同期resolveには進ませない ★★★
+                return;
+            }
+            // --- Method H: freee請求書 (旧freee会計から分離された新UI画面) ---
+            // URLは見かけ上 freee会計 と同じ場合があるため、URLでは判定せず、
+            // 問い合わせチャットウィジェット埋め込み用に script 内に直接書かれている
+            // params['FreeeExternalCid'] = '事業所番号'; を目印にする。
+            else if (ENABLE_INVOICE_RIBBON && Array.from(document.scripts).some(s => !s.src && s.textContent.includes("FreeeExternalCid']"))) {
+                console.log("freee Ribbon (BG - Page): Trying method H (invoice)...");
+                let cidRaw = null;
+                for (const script of document.scripts) {
+                    if (!script.src && script.textContent.includes("FreeeExternalCid']")) {
+                        const m = script.textContent.match(/FreeeExternalCid'\]\s*=\s*'(\d+)'/);
+                        if (m) { cidRaw = m[1]; break; }
+                    }
+                }
+                if (cidRaw) { data.external_cid_raw = cidRaw; }
+                // 会社名は新ヘッダー(gnavi)の会社切替ボタンの表示テキストから取得
+                const nameEl = document.querySelector('[id$="-trigger-company"] span');
+                if (nameEl) { data.company_name = nameEl.textContent?.trim(); }
             }
             // --- Method 4: freee設定画面など (FREEE_DATA fallback) ---
             else if (typeof window.FREEE_DATA === 'object' && window.FREEE_DATA !== null && typeof window.FREEE_DATA.companyId !== 'undefined') {
@@ -130,12 +168,8 @@ const getDataFromPageFunc = () => {
 
         } catch (error) { console.error("freee Ribbon (BG - Page): Error:", error); data.error = error.message; }
 
-        // ★★★ アプリストアのポーリングが開始されなかった場合にのみ、ここで resolve する ★★★
-        if (!isAppStorePath || data.external_cid) { // アプリストアでないか、アプリストア(Method F)で external_cid が見つかった場合
-             // console.log("freee Ribbon (BG - Page): Returning final data (Non-polling path or Method F success):", data); // ログ削減
-             resolve(data);
-        }
-        // アプリストアのポーリング中は pollDataLayer 内で resolve される
+        // Method G(非同期fetch)は自分で resolve して return 済みなので、ここに来るのは同期系メソッドのみ
+        resolve(data);
     });
 }; // End of getDataFromPageFunc
 

@@ -33,6 +33,9 @@
         .dev-color-setting label { margin-bottom: 0; margin-right: 0; min-width: 150px; }
         .dev-color-setting input[type="color"] { margin-bottom: 0; margin-right: 0; }
         .dev-color-setting input[type="text"] { margin-bottom: 0; }
+        .dev-text-setting { display: flex; align-items: center; margin-bottom: 15px; gap: 5px; }
+        .dev-text-setting label { margin-bottom: 0; margin-right: 0; min-width: 150px; }
+        .dev-text-setting input[type="text"] { margin-bottom: 0; width: 220px; }
         .input-error { border: 1px solid red !important; box-shadow: 0 0 3px rgba(255, 0, 0, 0.5); }
         .default-value-note { font-size: 0.8em; color: #6c757d; margin-top: -5px; margin-bottom: 15px; display: block; }
         .io-buttons button { background-color: #6c757d; font-size: 0.9em; padding: 8px 12px; }
@@ -87,6 +90,21 @@
 <body>
     <h1>Color Ribbon for freee 設定</h1>
     <label for="enableRibbon"> <input type="checkbox" id="enableRibbon"> リボンを表示する </label>
+    <div class="opacity-setting" style="margin-bottom: 20px;">
+        <label for="ribbonOpacity">リボンの不透明度 (背景のみ、文字はそのまま): <span id="ribbonOpacityValue">100</span>%</label>
+        <input type="range" id="ribbonOpacity" min="50" max="100" step="5" style="width: 300px; vertical-align: middle;">
+    </div>
+    <div class="hide-mode-setting" style="margin-bottom: 20px;">
+        <label style="margin-bottom: 8px;">リボンを一時的に消す方法</label>
+        <label style="font-weight: normal; display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+            <input type="radio" name="hideMode" id="hideModeClickToggle" value="click-toggle" style="margin-bottom: 0;">
+            クリックすると表示位置が切り替わる (右上・左上)
+        </label>
+        <label style="font-weight: normal; display: flex; align-items: center; gap: 5px; margin-bottom: 0;">
+            <input type="radio" name="hideMode" id="hideModeHoverHide" value="hover-hide" style="margin-bottom: 0;">
+            マウスをのせると自動的に消える (マウスが離れると再び表示)
+        </label>
+    </div>
     <h2>事業所ごとの色設定</h2>
     <p class="help-link">
         事業所番号が不明な場合は、<a href="https://support.freee.co.jp/hc/ja/articles/360000356263" target="_blank" rel="noopener noreferrer">freeeヘルプセンター</a>をご参照ください。
@@ -104,7 +122,7 @@
                         ステージング/インテグレーション環境を使用することがある方のみ、正規表現で指定してください。<br>
                         デフォルトは書式を表すための例で、そのままでは実際の構成と合いません。<br><br>
                         ステージング環境のURLが https://<strong>stg-secure</strong>.freee.co.jp であるとしたら、次のようにします。<br>
-                        <code>(stg-secure)\\.freee\\.co\\.jp</code><br>
+                        <code>(stg-secure)\.freee\.co\.jp</code><br>
                         カッコ内は | で区切って、複数のインテグレーション環境を指定できます。
                     </span>
                 </span>
@@ -138,15 +156,42 @@
                 <input type="text" id="productionColorText" class="color-text-input" placeholder="色名 or #HEX">
             </div>
             <div class="dev-color-setting">
-                <label for="subRibbonColor">2段目リボンの色</label>
+                <label for="subRibbonColor">
+                    2段目リボンの色
+                    <span class="help-icon">?
+                        <span class="tooltip-text">
+                            2段目のリボンは常にこの色で表示されます。<br>
+                            文字色は白なので明るい色だと読みにくくなります (デフォルトは #666666)。
+                        </span>
+                    </span>
+                </label>
                 <input type="color" id="subRibbonColor">
                 <input type="text" id="subRibbonColorText" class="color-text-input" placeholder="色名 or #HEX">
             </div>
-            <div class="dev-color-setting">
-                <label for="subRibbonTextColor">2段目リボンの文字色</label>
-                <input type="color" id="subRibbonTextColor">
-                <input type="text" id="subRibbonTextColorText" class="color-text-input" placeholder="色名 or #HEX">
+            <div class="dev-text-setting">
+                <label for="cidOverride">
+                    事業所番号を上書き
+                    <span class="help-icon">?
+                        <span class="tooltip-text">
+                            リボンに表示する事業所番号をダミーの文字列で上書きします。<br>
+                            スクリーンショットや動画を撮る際など、事業所番号を公開したくない場合に使用してください。
+                        </span>
+                    </span>
+                </label>
+                <input type="text" id="cidOverride" maxlength="18" placeholder="例: 000-000-0000">
             </div>
+            <label for="disabledUrlRegex">
+                リボンを表示しないプロダクト・画面のURL (正規表現)
+                <span class="help-icon">?
+                    <span class="tooltip-text">
+                        リボンを表示しないプロダクトや画面をURLの正規表現で指定します。<br>
+                        デフォルトでは「請求書」と「申告」で表示しないようになっています。<br>
+                        ボタンが隠れて操作しにくいなど、リボンと相性が悪いプロダクトでの表示を避けるための設定です。
+                    </span>
+                </span>
+            </label>
+            <input type="text" id="disabledUrlRegex" size="60" placeholder="空欄でこの制御を行いません">
+            <span id="defaultDisabledUrlRegexDisplay" class="default-value-note"></span>
         </div>
     </details>
     <button id="save">設定を保存</button>
@@ -158,7 +203,7 @@
         <input type="file" id="importFile" accept=".json" style="display: none;">
         <span id="io-status" style="margin-left: 10px; font-size: 0.9em;"></span>
         <p class="import-warning">
-            <strong>注意:</strong> 設定をインポートすると、現在の設定（事業所ごとの色設定、開発者向け設定、リボンの表示/非表示設定）は<strong style="color: #dc3545;">すべて上書きされます</strong>。
+            <strong>注意:</strong> 設定をインポートすると、現在の設定 (事業所ごとの色設定、開発者向け設定、リボンの表示/非表示設定) は<strong style="color: #dc3545;">すべて上書きされます</strong>。
         </p>
     </div>
 
