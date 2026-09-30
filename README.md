@@ -17,6 +17,24 @@ freeeの画面右上に、ログイン中の事業所名と事業所番号を示
 - リボンを表示しないプロダクト・画面をURLの正規表現で指定可能 (初期状態でfreee請求書・freee申告は非表示)
 - 対応プロダクト: freee会計、freee人事労務、freee会社設立、freeeマイナンバー管理、freee請求書、freee申告 ほか
 
+## スクリーンショット
+
+|▼freee会計|
+|:---|
+|![freee会計の画面右上にリボンが表示されている](./screenshots/ss_ac_highlight.png)|
+
+|▼freee人事労務|
+|:---|
+|![freee人事労務の画面右上にリボンが表示されている](./screenshots/ss_hr_highlight.png)|
+
+|▼オプション画面|
+|:---|
+|![リボンの表示設定と事業所ごとの色設定を変更可能](./screenshots/ss_setting1.png)|
+
+|▼開発者向け設定|
+|:---|
+|![ステージング環境URLなど通常は変更する必要がない高度な設定](./screenshots/ss_setting2.png)|
+
 ## インストール
 
 ### Chromeウェブストアから (推奨)
