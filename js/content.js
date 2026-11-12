@@ -186,17 +186,28 @@ function updateRibbonDOM(freeeData) {
     const mainBgColor = alpha < 1 ? colorToRgba(ribbonColor, alpha) : ribbonColor;
     const subBgColor = alpha < 1 ? colorToRgba(subRibbonColor, alpha) : subRibbonColor;
 
-    // 1段目 HTML
-    const nameHTML = `<span class="ribbon-text">${displayName}</span>`;
+    // 表示する値は文字列として扱い、要素を作って textContent / title / style プロパティで設定する。
     const titleText = `${displayName} (${displayedCid})`;
-    const mainRibbonHTML = `<div class="ribbon-main" style="background-color: ${mainBgColor};" title="${titleText}">${nameHTML}</div>`;
 
-    // 2段目 HTML (ステージング名表示ロジックは isStaging を使うので変更不要)
-    const subRibbonText = isStaging ? `${stagingEnvName}: ${displayedCid}` : displayedCid;
-    const subRibbonHTML = `<div class="ribbon-sub" style="background-color: ${subBgColor};" title="${titleText}">${subRibbonText}</div>`;
+    // 1段目
+    const mainRibbon = document.createElement('div');
+    mainRibbon.className = 'ribbon-main';
+    mainRibbon.style.backgroundColor = mainBgColor;
+    mainRibbon.title = titleText;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'ribbon-text';
+    nameSpan.textContent = displayName;
+    mainRibbon.appendChild(nameSpan);
+
+    // 2段目 (ステージング名表示ロジックは isStaging を使うので変更不要)
+    const subRibbon = document.createElement('div');
+    subRibbon.className = 'ribbon-sub';
+    subRibbon.style.backgroundColor = subBgColor;
+    subRibbon.title = titleText;
+    subRibbon.textContent = isStaging ? `${stagingEnvName}: ${displayedCid}` : displayedCid;
 
     // コンテナに設定 & 表示 (再表示のたびにホバー消去状態はリセットする)
-    ribbonContainer.innerHTML = mainRibbonHTML + subRibbonHTML;
+    ribbonContainer.replaceChildren(mainRibbon, subRibbon);
     ribbonContainer.classList.remove('hidden');
     ribbonContainer.classList.remove('hover-peek');
     isHoverHidden = false;
