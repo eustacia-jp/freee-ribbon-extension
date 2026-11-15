@@ -1,6 +1,6 @@
 # Color Ribbon for freee
 
-freeeの画面右上に、ログイン中の事業所名と事業所番号を示す色付きリボンを表示するChrome拡張機能です。
+freeeの画面右上に、ログイン中の事業所名と事業所番号を示す色付きリボンを表示する**Chrome拡張機能**です。
 
 複数の事業所を切り替えながらfreeeを使う際に「どの事業所にログインしているか」を一目でわかるようにすることを目的としています。
 
@@ -37,11 +37,13 @@ freeeの画面右上に、ログイン中の事業所名と事業所番号を示
 
 ## インストール
 
-### Chromeウェブストアから (推奨)
+次のA・Bどちらかの方法でインストールしてご利用ください。
+
+### A. Chromeウェブストアから (推奨)
 
 [Color Ribbon for freee - Chrome ウェブストア](https://chromewebstore.google.com/detail/color-ribbon-for-freee/bpfkbiddimcmmkgjeijbmpginlepjebj)
 
-### 開発者モードで手動インストール
+### B. 開発者モードで手動インストール
 
 1. このリポジトリをダウンロード (またはクローン) する
 2. Chromeで `chrome://extensions` を開く
